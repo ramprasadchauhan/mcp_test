@@ -103,23 +103,28 @@ server.registerTool(
   }
 );
 // --- FIX STARTS HERE ---
-let transport;
+// let transport;
 
-// 1. SSE Setup Endpoint (Client connects here first)
-app.get("/mcp", async (req, res) => {
-  console.log("Client connecting via SSE...");
-  transport = new SSEServerTransport("/messages", res); // Messages will be sent to /messages
+// // 1. SSE Setup Endpoint (Client connects here first)
+// app.get("/mcp", async (req, res) => {
+//   console.log("Client connecting via SSE...");
+//   transport = new SSEServerTransport("/messages", res); // Messages will be sent to /messages
+//   await server.connect(transport);
+// });
+
+// // 2. Message Handling Endpoint (Client sends commands here)
+// app.post("/messages", async (req, res) => {
+//   console.log("Received message from client");
+//   if (transport) {
+//     await transport.handlePostMessage(req, res);
+//   } else {
+//     res.status(400).send("No active session");
+//   }
+// });
+
+app.post("/mcp", async (req, res) => {
+  const transport = new SSEServerTransport("/mcp", res);
   await server.connect(transport);
-});
-
-// 2. Message Handling Endpoint (Client sends commands here)
-app.post("/messages", async (req, res) => {
-  console.log("Received message from client");
-  if (transport) {
-    await transport.handlePostMessage(req, res);
-  } else {
-    res.status(400).send("No active session");
-  }
 });
 
 const PORT = 8000;
