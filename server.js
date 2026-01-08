@@ -81,7 +81,19 @@ function createMcpServer() {
  * Start the HTTP MCP server with URL transport
  */
 function startHttpMcpServer(port = 3100) {
-  const app = createMcpExpressApp();
+  // Get allowed hosts from environment or use default for production
+  // For Render deployment, set ALLOWED_HOSTS env var (e.g., "mcp-test-db6n.onrender.com")
+  // If not set, allow all hosts (less secure but works for testing)
+  const allowedHostsEnv = process.env.ALLOWED_HOSTS;
+  const allowedHosts = allowedHostsEnv
+    ? allowedHostsEnv.split(",").map((h) => h.trim())
+    : undefined; // undefined = no host validation (for production deployment)
+
+  // Create Express app with host configuration for deployment
+  const app = createMcpExpressApp({
+    host: "0.0.0.0", // Bind to all interfaces for Render
+    allowedHosts: allowedHosts, // Allow specified hosts or all if not set
+  });
   const transports = {};
 
   // POST endpoint for MCP requests
@@ -96,13 +108,21 @@ function startHttpMcpServer(port = 3100) {
         transport = transports[sessionId];
       } else if (!sessionId && isInitializeRequest(req.body)) {
         // New initialization request - create new transport
-        transport = new StreamableHTTPServerTransport({
+        // Configure allowedHosts for transport (deprecated but still works)
+        const transportOptions = {
           sessionIdGenerator: () => randomUUID(),
           onsessioninitialized: (sid) => {
             console.log(`Session initialized with ID: ${sid}`);
             transports[sid] = transport;
           },
-        });
+        };
+
+        // Add allowedHosts if configured (for host validation in transport)
+        if (allowedHosts) {
+          transportOptions.allowedHosts = allowedHosts;
+        }
+
+        transport = new StreamableHTTPServerTransport(transportOptions);
 
         // Clean up transport when closed
         transport.onclose = () => {
@@ -186,12 +206,17 @@ function startHttpMcpServer(port = 3100) {
   });
 
   // Start the server
+  // Note: Express binds to all interfaces (0.0.0.0) by default, which works for Render
   app.listen(port, (error) => {
     if (error) {
       console.error("Failed to start server:", error);
       process.exit(1);
     }
-    console.log(`MCP HTTP Server listening on http://localhost:${port}/mcp`);
+    console.log(
+      `MCP HTTP Server listening on port ${port}/mcp (allowedHosts: ${
+        allowedHosts ? allowedHosts.join(", ") : "all (no validation)"
+      })`
+    );
   });
 
   // Cleanup on shutdown
@@ -215,4 +240,6 @@ function startHttpMcpServer(port = 3100) {
 }
 
 // Start the server
-startHttpMcpServer(3100);
+// Use PORT from environment (Render sets this) or default to 3100
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3100;
+startHttpMcpServer(PORT);

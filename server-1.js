@@ -14,7 +14,7 @@ const client = new MultiServerMCPClient({
     transport: "http", // HTTP-based remote server
     // Ensure you start your weather server on port 8000
     // url: "http://localhost:8000/mcp",
-    url: "http://localhost:3000/farm-os/test-summary",
+    url: "http://localhost:3100/mcp",
   },
 });
 
